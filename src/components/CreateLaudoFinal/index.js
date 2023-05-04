@@ -3,12 +3,40 @@ import { useEffect } from "react";
 import { useState } from "react";
 import { FaPen } from "react-icons/fa";
 import styled from "styled-components";
+import { saveAs } from "file-saver";
 
 export default function CreateLaudoFinal() {
   const [amostras, setAmostras] = useState([]);
   const [editedValues, setEditedValues] = useState({});
 
   const BACK_END_URL = process.env.REACT_APP_BACK_END_URL;
+
+  async function generatePDF(amostraId) {
+    try {
+      const response = await axios.get(
+        `${BACK_END_URL}/amostras/pdf/${amostraId}`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const pdfBlob = new Blob([response.data], { type: "application/pdf" });
+      saveAs(pdfBlob, `Amostra-${amostraId}.pdf`);
+    } catch (error) {
+      console.log(error);
+      alert("Ocorreu um erro ao gerar o PDF.");
+    }
+  }
+
+   function OptionWithExponent({ base, exponent }) {
+     const value = `${base}e${exponent}`;
+     const label = (
+       <span>
+         {base}x10<sup>{exponent}</sup>
+       </span>
+     );
+     return <option value={value}>{label}</option>;
+   }
 
   useEffect(() => {
     async function fetchData() {
@@ -125,7 +153,7 @@ export default function CreateLaudoFinal() {
             <p>Data da coleta: {amostra.datadaColeta}</p>
             <p>Entregue por: {amostra.entreguePor}</p>
             <p>Matriz analítica: cultura liquida on farm</p>
-            <p>Proprietário:</p>
+            <p>Proprietário: {amostra?.cliente.name}</p>
             <p>Entrada no laboratório: {amostra.entradaNoLab}</p>
             <p>Município: {amostra.municipio}</p>
             <p>Estado: {amostra.estado}</p>
@@ -249,9 +277,11 @@ export default function CreateLaudoFinal() {
                         <option value="N.C.">N.C.</option>
                         {[...Array(10).keys()].map((i) =>
                           [1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
-                            <option key={`${i}${j}`} value={`${j}e${i}`}>
-                              {`${j}x10^${i}`}
-                            </option>
+                            <OptionWithExponent
+                              key={`${j}e${i}`}
+                              base={j}
+                              exponent={i}
+                            />
                           ))
                         )}
                       </ColiformesSelect>
@@ -273,7 +303,10 @@ export default function CreateLaudoFinal() {
                     )}
                   </p>
                   <h3>Valores ideiais para coliformes:</h3>
-                  <h4> Menor ou igual a 5x10²</h4>
+                  <h4>
+                    {" "}
+                    Menor ou igual a 5x10<sup>2</sup>
+                  </h4>
                 </label>
                 <label>
                   <h1>(UFC/ML) Bolor/Levedura</h1>
@@ -311,7 +344,8 @@ export default function CreateLaudoFinal() {
                         {[...Array(10).keys()].map((i) =>
                           [1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
                             <option key={`${i}${j}`} value={`${j}e${i}`}>
-                              {`${j}x10^${i}`}
+                              {`${j}x10`}
+                              <sup>{`${i}`}</sup>
                             </option>
                           ))
                         )}
@@ -334,8 +368,11 @@ export default function CreateLaudoFinal() {
                     )}
                   </p>
                   <h3>Valores ideais para Bolor/Levedura:</h3>
-                  <h4>Menor que 1x10⁰</h4>
+                  <h4>
+                    Menor que 1x10<sup>0</sup>
+                  </h4>
                 </label>
+                <p onClick={() => generatePDF(amostra.id)}>IMPRIMIR</p>
               </DadosDosResultados>
             </DadosDaAmostraBox>
           ))}
