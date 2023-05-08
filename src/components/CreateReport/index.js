@@ -116,11 +116,15 @@ async function fetchClients() {
   };
 
   const handleSave = async () => {
-    try {
-      const response = await axios.post(
-        `${BACK_END_URL}/amostras`,
-        formValues
+    if (formValues.identAmostra.length === 0) {
+      toast.error(
+        "É obrigatório adicionar pelo menos uma identificação de amostra."
       );
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${BACK_END_URL}/amostras`, formValues);
       console.log("Dados enviados com sucesso!");
       console.log("Resposta da rota /amostras:", response.data);
       toast.success("Amostra cadastrada");
@@ -366,8 +370,8 @@ async function fetchClients() {
       </AmostraContainer>
       <Title>Identificação da amostra</Title>
       <ButtonAdd onClick={handleAddIdentificacao}>
-        <FaPlus size={20} />
-        Adicionar Identificação de Amostra
+        <FaPlus size={30} style={{ marginRight: "15px" }} />{" "}
+        <p>Adicionar Identificação de Amostra</p>
       </ButtonAdd>
       {formValues.identAmostra.map((identificacao, index) => (
         <ConteinerIdent key={index}>
@@ -410,7 +414,7 @@ async function fetchClients() {
             </GridItem>
             <GridItem>
               <Label htmlFor={`MicroorganismoDaAmostra${index}`}>
-                Microorganismo da amostra
+                Microorganismo
               </Label>
               <Inpute
                 type="text"
@@ -428,7 +432,9 @@ async function fetchClients() {
                 onChange={(event) => handleInputChange(event, index, false)}
               />
 
-              <Label htmlFor={`ValorDaAmostra${index}`}>Valor da amostra</Label>
+              <Label htmlFor={`ValorDaAmostra${index}`}>
+                Valor da amostra (R$)
+              </Label>
               <Inpute
                 type="text"
                 id={`valor-${index}`}
@@ -436,12 +442,14 @@ async function fetchClients() {
                 value={identificacao.preco || ""}
                 onChange={(event) => handleInputChange(event, index, false)}
               />
-
-              <ButtonRemove onClick={() => handleRemoveIdentificacao(index)}>
-                <FaTimes size={20} /> Remover Identificação de Amostra
-              </ButtonRemove>
             </GridItem>
           </Grid>
+          <ButtonRemove onClick={() => handleRemoveIdentificacao(index)}>
+            <FaTimes size={30} style={{ marginRight: "15px" }} />{" "}
+            <p>
+              Remover Identificação <br></br> de Amostra
+            </p>
+          </ButtonRemove>
         </ConteinerIdent>
       ))}
       <ButtonSave onClick={handleSave}>Salvar</ButtonSave>
@@ -504,7 +512,13 @@ const ButtonAdd = styled.button`
   color: white;
   cursor: pointer;
   margin-bottom: 10px;
-  width: 220px;
+  width: 50%;
+  height: 60px;
+
+  p {
+    font-size: 15px;
+    font-weight: bold;
+  }
 
   display: flex;
   justify-content: center;
@@ -513,6 +527,30 @@ const ButtonAdd = styled.button`
     background-color: #0066cc;
   }
 `;
+
+const ButtonRemove = styled.button`
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #228896;
+  color: white;
+  cursor: pointer;
+  margin-bottom: 10px;
+  width: 85%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  p {
+    font-size: 15px;
+    font-weight: bold;
+  }
+
+  &:hover {
+    background-color: #0066cc;
+  }
+`;
+
 
 const ButtonSave = styled.button`
   padding: 10px;
@@ -568,24 +606,6 @@ export const Inpute = styled(InputMask)`
   border: 1px solid #ccc;
 `;
 
-const ButtonRemove = styled.button`
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
-  background-color: #228896;
-  color: white;
-  cursor: pointer;
-  margin-bottom: 10px;
-  width: 220px;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  &:hover {
-    background-color: #0066cc;
-  }
-`;
 
 const AmostraContainer = styled.div`
   padding: 40px;

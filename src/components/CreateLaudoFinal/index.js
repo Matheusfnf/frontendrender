@@ -8,8 +8,47 @@ import { saveAs } from "file-saver";
 export default function CreateLaudoFinal() {
   const [amostras, setAmostras] = useState([]);
   const [editedValues, setEditedValues] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clients, setClients] = useState([]);
 
   const BACK_END_URL = process.env.REACT_APP_BACK_END_URL;
+
+  async function fetchAmostras() {
+    try {
+      const response = await axios.get(`${BACK_END_URL}/amostras`);
+      setClients(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  useEffect(() => {
+    fetchAmostras();
+  }, []);
+
+  async function handleDelete(id) {
+    try {
+      await axios.delete(`${BACK_END_URL}/amostras/${id}`);
+      setShowModal(false);
+      setSelectedClient(null);
+      // Atualiza o estado das amostras removendo a amostra excluída
+      const updatedAmostras = amostras.filter((amostra) => amostra.id !== id);
+      setAmostras(updatedAmostras);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  function openModal(client) {
+    setSelectedClient(client);
+    setShowModal(true);
+  }
+
+  function closeModal() {
+    setShowModal(false);
+    setSelectedClient(null);
+  }
 
   async function generatePDF(amostraId) {
     try {
@@ -28,22 +67,20 @@ export default function CreateLaudoFinal() {
     }
   }
 
-   function OptionWithExponent({ base, exponent }) {
-     const value = `${base}e${exponent}`;
-     const label = (
-       <span>
-         {base}x10<sup>{exponent}</sup>
-       </span>
-     );
-     return <option value={value}>{label}</option>;
-   }
+  function OptionWithExponent({ base, exponent }) {
+    const value = `${base}e${exponent}`;
+    const label = (
+      <span>
+        {base}x10<sup>{exponent}</sup>
+      </span>
+    );
+    return <option value={value}>{label}</option>;
+  }
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const amostrasResponse = await axios.get(
-          `${BACK_END_URL}/amostras`
-        )
+        const amostrasResponse = await axios.get(`${BACK_END_URL}/amostras`);
         setAmostras(amostrasResponse.data);
 
         const initialEditedValues = {};
@@ -70,10 +107,9 @@ export default function CreateLaudoFinal() {
     }
 
     try {
-      await axios.put(
-        `${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`,
-        { [field]: value }
-      );
+      await axios.put(`${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`, {
+        [field]: value,
+      });
 
       setAmostras((prevAmostras) => {
         const updatedAmostras = [...prevAmostras];
@@ -99,9 +135,7 @@ export default function CreateLaudoFinal() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const amostrasResponse = await axios.get(
-          `${BACK_END_URL}/amostras`
-        );
+        const amostrasResponse = await axios.get(`${BACK_END_URL}/amostras`);
         setAmostras(amostrasResponse.data);
 
         const initialEditedValues = {};
@@ -372,7 +406,27 @@ export default function CreateLaudoFinal() {
                     Menor que 1x10<sup>0</sup>
                   </h4>
                 </label>
-                <p onClick={() => generatePDF(amostra.id)}>IMPRIMIR</p>
+                <AdminOptions>
+                  <AdminOptions>
+                    <Imprimir onClick={() => generatePDF(amostra.id)}>
+                      IMPRIMIR
+                    </Imprimir>
+                    <DeletarAmostra onClick={() => openModal(amostra)}>Deletar Amostra</DeletarAmostra>
+                  </AdminOptions>
+                </AdminOptions>
+                {showModal && (
+                  <ModalContainer>
+                    <ModalBox>
+                      <h2>Tem certeza que deseja excluir essa amostra?</h2>
+                      <div>
+                        <Button onClick={() => handleDelete(selectedClient.id)}>
+                          Sim
+                        </Button>
+                        <Button onClick={() => closeModal()}>Não</Button>
+                      </div>
+                    </ModalBox>
+                  </ModalContainer>
+                )}
               </DadosDosResultados>
             </DadosDaAmostraBox>
           ))}
@@ -503,4 +557,83 @@ const SelectBolor = styled.select`
   width: 100%;
   padding: 5px;
   border-radius: 5px;
+`;
+
+const AdminOptions = styled.div`
+  display: flex;
+
+  margin-top: 2%;
+`;
+
+const Imprimir = styled.p`
+  /* Aqui você pode definir os estilos desejados para o elemento "p" com a cor vermelha */
+  background-color: gray;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 5px;
+  cursor: pointer;
+`;
+
+const DeletarAmostra = styled.p`
+  /* Aqui você pode definir os estilos desejados para o elemento "p" com a cor azul */
+  background-color: red;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 5px;
+  cursor: pointer;
+`;
+
+const ModalContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.5);
+`;
+
+const ModalBox = styled.div`
+  width: 300px;
+  height: 100px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+
+  h2 {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #4f4f4f;
+  }
+
+  div {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+  }
+`;
+
+const Button = styled.button`
+  background-color: #0d4c8b;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #003366;
+  }
 `;
