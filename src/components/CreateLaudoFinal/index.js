@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FaPen } from "react-icons/fa";
 import styled from "styled-components";
 import { saveAs } from "file-saver";
+import Select from "react-select";
 
 export default function CreateLaudoFinal() {
   const [amostras, setAmostras] = useState([]);
@@ -13,6 +14,33 @@ export default function CreateLaudoFinal() {
   const [clients, setClients] = useState([]);
 
   const BACK_END_URL = process.env.REACT_APP_BACK_END_URL;
+
+  const expoenteOptions = [];
+
+  function getUnicodeExponent(exp) {
+    if (exp === 2) {
+      return String.fromCharCode(178); // ²
+    } else if (exp === 3) {
+      return String.fromCharCode(179); // ³
+    } else {
+      return String.fromCharCode(8304 + exp);
+    }
+  }
+
+  for (let i = 1; i <= 9; i++) {
+    for (let j = 1; j <= 9; j++) {
+      const unicodeExponent = getUnicodeExponent(j);
+      expoenteOptions.push({
+        value: `${i}x10^${j}`,
+        label: `${i}x10${unicodeExponent}`,
+      });
+    }
+  }
+
+  const handleChange = (selectedOption, amostraId, identId, field) => {
+    console.log(`Opção selecionada:`, selectedOption);
+    handleEdit(identId, amostraId, field, selectedOption.value);
+  };
 
   async function fetchAmostras() {
     try {
@@ -26,6 +54,8 @@ export default function CreateLaudoFinal() {
   useEffect(() => {
     fetchAmostras();
   }, []);
+
+  
 
   async function handleDelete(id) {
     try {
@@ -101,36 +131,35 @@ export default function CreateLaudoFinal() {
     fetchData();
   }, []);
 
-  async function handleEdit(identId, amostraId, field, value) {
-    if (isNaN(identId) || identId === null || identId === undefined) {
-      throw new Error(`IdentId '${identId}' is not a valid number`);
-    }
-
-    try {
-      await axios.put(`${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`, {
-        [field]: value,
-      });
-
-      setAmostras((prevAmostras) => {
-        const updatedAmostras = [...prevAmostras];
-        const amostraIndex = updatedAmostras.findIndex(
-          (amostra) => amostra.id === amostraId
-        );
-        if (amostraIndex >= 0) {
-          const identIndex = updatedAmostras[
-            amostraIndex
-          ].identAmostra.findIndex((ident) => ident.id === identId);
-          if (identIndex >= 0) {
-            updatedAmostras[amostraIndex].identAmostra[identIndex][field] =
-              value;
-          }
-        }
-        return updatedAmostras;
-      });
-    } catch (error) {
-      console.log(error);
-    }
+async function handleEdit(identId, amostraId, field, value) {
+  if (isNaN(identId) || identId === null || identId === undefined) {
+    throw new Error(`IdentId '${identId}' is not a valid number`);
   }
+
+  try {
+    await axios.put(`${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`, {
+      [field]: value,
+    });
+
+    setAmostras((prevAmostras) => {
+      const updatedAmostras = [...prevAmostras];
+      const amostraIndex = updatedAmostras.findIndex(
+        (amostra) => amostra.id === amostraId
+      );
+      if (amostraIndex >= 0) {
+        const identIndex = updatedAmostras[amostraIndex].identAmostra.findIndex(
+          (ident) => ident.id === identId
+        );
+        if (identIndex >= 0) {
+          updatedAmostras[amostraIndex].identAmostra[identIndex][field] = value;
+        }
+      }
+      return updatedAmostras;
+    });
+  } catch (error) {
+    console.log(error);
+  }
+}
 
   useEffect(() => {
     async function fetchData() {
@@ -187,7 +216,7 @@ export default function CreateLaudoFinal() {
             <p>Data da coleta: {amostra.datadaColeta}</p>
             <p>Entregue por: {amostra.entreguePor}</p>
             <p>Matriz analítica: cultura liquida on farm</p>
-            <p>Proprietário: {amostra?.cliente.name}</p>
+            <p>Proprietário: {amostra?.cliente?.name}</p>
             <p>Entrada no laboratório: {amostra.entradaNoLab}</p>
             <p>Município: {amostra.municipio}</p>
             <p>Estado: {amostra.estado}</p>
@@ -217,201 +246,60 @@ export default function CreateLaudoFinal() {
                 </label>
 
                 <label>
-                  <h1>(UFC/ML) Amostra OnFarm</h1>
-                  <p>
-                    {editedValues[`${amostra.id}_${ident.id}`] ? (
-                      <SelectBolor
-                        name="ufcmicroorganismo"
-                        value={
-                          editedValues[`${amostra.id}_${ident.id}`]
-                            ?.ufcmicroorganismo ?? ""
-                        }
-                        onChange={(event) =>
-                          handleInputChange(
-                            event,
-                            amostra.id,
-                            ident.id,
-                            "ufcmicroorganismo"
-                          )
-                        }
-                        onBlur={() =>
-                          handleEdit(
-                            ident.id,
-                            amostra.id,
-                            "ufcmicroorganismo",
-                            editedValues[`${amostra.id}_${ident.id}`]
-                              ?.ufcmicroorganismo ?? ""
-                          )
-                        }
-                        editedValues={editedValues}
-                        amostra={amostra}
-                        ident={ident}
-                      >
-                        <option value="">Selecione uma opção</option>
-                        <option value="N.C.">N.C.</option>
-                        {[...Array(10).keys()].map((i) =>
-                          [1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
-                            <option key={`${i}${j}`} value={`${j}e${i}`}>
-                              {`${j}x10^${i}`}
-                            </option>
-                          ))
-                        )}
-                      </SelectBolor>
-                    ) : (
-                      <span>
-                        {ident.ufcmicroorganismo} :{" "}
-                        <FaPen
-                          onClick={() =>
-                            setEditedValues({
-                              ...editedValues,
-                              [`${amostra.id}_${ident.id}`]: {
-                                ...editedValues[`${amostra.id}_${ident.id}`],
-                                ufcmicroorganismo: ident.ufcmicroorganismo,
-                              },
-                            })
-                          }
-                        />
-                      </span>
-                    )}
-                  </p>
+                  (UFC/ML) Microorganismo
+                  <Select
+                    options={expoenteOptions}
+                    onChange={(selectedOption) =>
+                      handleChange(
+                        selectedOption,
+                        amostra.id,
+                        ident.id,
+                        "ufcmicroorganismo"
+                      )
+                    }
+                    placeholder="Selecione uma opção"
+                  />
                 </label>
 
                 <label>
-                  <h1>(UFC/ML) Coliformes</h1>
-                  <p>
-                    {editedValues[`${amostra.id}_${ident.id}`] ? (
-                      <ColiformesSelect
-                        name="ufccoliformes"
-                        value={
-                          editedValues[`${amostra.id}_${ident.id}`]
-                            ?.ufccoliformes ?? ""
-                        }
-                        onChange={(event) =>
-                          handleInputChange(
-                            event,
-                            amostra.id,
-                            ident.id,
-                            "ufccoliformes"
-                          )
-                        }
-                        onBlur={() =>
-                          handleEdit(
-                            ident.id,
-                            amostra.id,
-                            "ufccoliformes",
-                            editedValues[`${amostra.id}_${ident.id}`]
-                              ?.ufccoliformes ?? ""
-                          )
-                        }
-                        editedValues={editedValues}
-                        amostra={amostra}
-                        ident={ident}
-                      >
-                        <option value="">Selecione uma opção</option>
-                        <option value="N.C.">N.C.</option>
-                        {[...Array(10).keys()].map((i) =>
-                          [1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
-                            <OptionWithExponent
-                              key={`${j}e${i}`}
-                              base={j}
-                              exponent={i}
-                            />
-                          ))
-                        )}
-                      </ColiformesSelect>
-                    ) : (
-                      <span>
-                        {ident.ufccoliformes} :{" "}
-                        <FaPen
-                          onClick={() =>
-                            setEditedValues({
-                              ...editedValues,
-                              [`${amostra.id}_${ident.id}`]: {
-                                ...editedValues[`${amostra.id}_${ident.id}`],
-                                ufccoliformes: ident.ufccoliformes,
-                              },
-                            })
-                          }
-                        />
-                      </span>
-                    )}
-                  </p>
-                  <h3>Valores ideiais para coliformes:</h3>
-                  <h4>
-                    {" "}
-                    Menor ou igual a 5x10<sup>2</sup>
-                  </h4>
+                  (UFC/ML) Coliformes
+                  <Select
+                    options={expoenteOptions}
+                    onChange={(selectedOption) =>
+                      handleChange(
+                        selectedOption,
+                        amostra.id,
+                        ident.id,
+                        "ufccoliformes"
+                      )
+                    }
+                    placeholder="Selecione uma opção"
+                  />
                 </label>
+
                 <label>
-                  <h1>(UFC/ML) Bolor/Levedura</h1>
-                  <p>
-                    {editedValues[`${amostra.id}_${ident.id}`] ? (
-                      <SelectBolor
-                        name="ufcbolor"
-                        value={
-                          editedValues[`${amostra.id}_${ident.id}`]?.ufcbolor ??
-                          ""
-                        }
-                        onChange={(event) =>
-                          handleInputChange(
-                            event,
-                            amostra.id,
-                            ident.id,
-                            "ufcbolor"
-                          )
-                        }
-                        onBlur={() =>
-                          handleEdit(
-                            ident.id,
-                            amostra.id,
-                            "ufcbolor",
-                            editedValues[`${amostra.id}_${ident.id}`]
-                              ?.ufcbolor ?? ""
-                          )
-                        }
-                        editedValues={editedValues}
-                        amostra={amostra}
-                        ident={ident}
-                      >
-                        <option value="">Selecione uma opção</option>
-                        <option value="N.C.">N.C.</option>
-                        {[...Array(10).keys()].map((i) =>
-                          [1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
-                            <option key={`${i}${j}`} value={`${j}e${i}`}>
-                              {`${j}x10`}
-                              <sup>{`${i}`}</sup>
-                            </option>
-                          ))
-                        )}
-                      </SelectBolor>
-                    ) : (
-                      <span>
-                        {ident.ufcbolor} :{" "}
-                        <FaPen
-                          onClick={() =>
-                            setEditedValues({
-                              ...editedValues,
-                              [`${amostra.id}_${ident.id}`]: {
-                                ...editedValues[`${amostra.id}_${ident.id}`],
-                                ufcbolor: ident.ufcbolor,
-                              },
-                            })
-                          }
-                        />
-                      </span>
-                    )}
-                  </p>
-                  <h3>Valores ideais para Bolor/Levedura:</h3>
-                  <h4>
-                    Menor que 1x10<sup>0</sup>
-                  </h4>
+                  (UFC/ML) Bolor/Levedura
+                  <Select
+                    options={expoenteOptions}
+                    onChange={(selectedOption) =>
+                      handleChange(
+                        selectedOption,
+                        amostra.id,
+                        ident.id,
+                        "ufcbolor"
+                      )
+                    }
+                    placeholder="Selecione uma opção"
+                  />
                 </label>
                 <AdminOptions>
                   <AdminOptions>
                     <Imprimir onClick={() => generatePDF(amostra.id)}>
                       IMPRIMIR
                     </Imprimir>
-                    <DeletarAmostra onClick={() => openModal(amostra)}>Deletar Amostra</DeletarAmostra>
+                    <DeletarAmostra onClick={() => openModal(amostra)}>
+                      Deletar Amostra
+                    </DeletarAmostra>
                   </AdminOptions>
                 </AdminOptions>
                 {showModal && (
