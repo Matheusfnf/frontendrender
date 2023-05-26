@@ -1,7 +1,6 @@
 import axios from "axios";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useState } from "react";
-import { FaPen } from "react-icons/fa";
 import styled from "styled-components";
 import { saveAs } from "file-saver";
 import Select from "react-select";
@@ -11,7 +10,9 @@ export default function CreateLaudoFinal() {
   const [editedValues, setEditedValues] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [clients, setClients] = useState([]);
+  const [amostra, setAmostra] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [clienteSelecionado, setClienteSelecionado] = useState(null);
 
   const BACK_END_URL = process.env.REACT_APP_BACK_END_URL;
 
@@ -45,7 +46,16 @@ export default function CreateLaudoFinal() {
   async function fetchAmostras() {
     try {
       const response = await axios.get(`${BACK_END_URL}/amostras`);
-      setClients(response.data);
+      setAmostra(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function fetchClients() {
+    try {
+      const response = await axios.get(`${BACK_END_URL}/clientes`);
+      setClientes(response.data);
     } catch (error) {
       console.log(error);
     }
@@ -53,9 +63,28 @@ export default function CreateLaudoFinal() {
 
   useEffect(() => {
     fetchAmostras();
-  }, []);
+    fetchClients();
+  }, [fetchAmostras, fetchClients]);
 
-  
+ const handleFiltro = (event) => {
+   setClienteSelecionado(parseInt(event.target.value));
+ };
+
+ const amostrasFiltradas = useMemo(() => {
+   if (clienteSelecionado === null) {
+     return amostra;
+   } else {
+     return amostra.filter((amostraItem) => {
+       return amostraItem.cliente_id === clienteSelecionado;
+     });
+   }
+ }, [clienteSelecionado, amostra]);
+
+  const optionsClientes = clientes.map((cliente) => (
+    <option key={cliente.id} value={cliente.id}>
+      {cliente.name}
+    </option>
+  ));
 
   async function handleDelete(id) {
     try {
@@ -131,35 +160,36 @@ export default function CreateLaudoFinal() {
     fetchData();
   }, []);
 
-async function handleEdit(identId, amostraId, field, value) {
-  if (isNaN(identId) || identId === null || identId === undefined) {
-    throw new Error(`IdentId '${identId}' is not a valid number`);
-  }
+  async function handleEdit(identId, amostraId, field, value) {
+    if (isNaN(identId) || identId === null || identId === undefined) {
+      throw new Error(`IdentId '${identId}' is not a valid number`);
+    }
 
-  try {
-    await axios.put(`${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`, {
-      [field]: value,
-    });
+    try {
+      await axios.put(`${BACK_END_URL}/tipoamostra/${amostraId}/${identId}`, {
+        [field]: value,
+      });
 
-    setAmostras((prevAmostras) => {
-      const updatedAmostras = [...prevAmostras];
-      const amostraIndex = updatedAmostras.findIndex(
-        (amostra) => amostra.id === amostraId
-      );
-      if (amostraIndex >= 0) {
-        const identIndex = updatedAmostras[amostraIndex].identAmostra.findIndex(
-          (ident) => ident.id === identId
+      setAmostras((prevAmostras) => {
+        const updatedAmostras = [...prevAmostras];
+        const amostraIndex = updatedAmostras.findIndex(
+          (amostra) => amostra.id === amostraId
         );
-        if (identIndex >= 0) {
-          updatedAmostras[amostraIndex].identAmostra[identIndex][field] = value;
+        if (amostraIndex >= 0) {
+          const identIndex = updatedAmostras[
+            amostraIndex
+          ].identAmostra.findIndex((ident) => ident.id === identId);
+          if (identIndex >= 0) {
+            updatedAmostras[amostraIndex].identAmostra[identIndex][field] =
+              value;
+          }
         }
-      }
-      return updatedAmostras;
-    });
-  } catch (error) {
-    console.log(error);
+        return updatedAmostras;
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
-}
 
   useEffect(() => {
     async function fetchData() {
@@ -201,125 +231,140 @@ async function handleEdit(identId, amostraId, field, value) {
   }
   return (
     <>
+      <Filtro>
+        <label>
+          Filtrar por clientes:
+          <select value={clienteSelecionado} onChange={handleFiltro}>
+            <option value="">Todos os clientes</option>
+            {optionsClientes}
+          </select>
+        </label>
+      </Filtro>
       <Titulo>
         <h1>Inserir Resultados Finais</h1>
       </Titulo>
 
-      {amostras.map((amostra) => (
-        <TodosOsDadosBox key={amostra.id}>
-          <Title>
-            <h1>Informações cadastrais</h1>
-          </Title>
-          <DadosDoClienteGrid>
-            <p>Solicitante: {amostra.entreguePor}</p>
-            <p>Propriedade: {amostra.fazenda}</p>
-            <p>Data da coleta: {amostra.datadaColeta}</p>
-            <p>Entregue por: {amostra.entreguePor}</p>
-            <p>Matriz analítica: cultura liquida on farm</p>
-            <p>Proprietário: {amostra?.cliente?.name}</p>
-            <p>Entrada no laboratório: {amostra.entradaNoLab}</p>
-            <p>Município: {amostra.municipio}</p>
-            <p>Estado: {amostra.estado}</p>
-            <p>Temperatura: {amostra?.temperatura}</p>
-          </DadosDoClienteGrid>
+      {amostrasFiltradas.length > 0 ? (
+        amostrasFiltradas.map((amostra) => (
+          <TodosOsDadosBox key={amostra.id}>
+            <Title>
+              <h1>Informações cadastrais</h1>
+            </Title>
+            <DadosDoClienteGrid>
+              <p>Solicitante: {amostra.entreguePor}</p>
+              <p>Propriedade: {amostra.fazenda}</p>
+              <p>Data da coleta: {amostra.datadaColeta}</p>
+              <p>Entregue por: {amostra.entreguePor}</p>
+              <p>Matriz analítica: cultura liquida on farm</p>
+              <p>Proprietário: {amostra?.cliente?.name}</p>
+              <p>Entrada no laboratório: {amostra.entradaNoLab}</p>
+              <p>Município: {amostra.municipio}</p>
+              <p>Estado: {amostra.estado}</p>
+              <p>Temperatura: {amostra?.temperatura}</p>
+            </DadosDoClienteGrid>
 
-          <Title>
-            <h1>Apresentação dos resultados</h1>
-          </Title>
-          {amostra.identAmostra.map((ident) => (
-            <DadosDaAmostraBox key={ident.id}>
-              <Separador />
-              <DadosDosResultados>
-                <label>
-                  <h1>Código:</h1>
-                  <p>{ident.codigo}</p>
-                </label>
+            <Title>
+              <h1>Apresentação dos resultados</h1>
+            </Title>
+            {amostra.identAmostra.map((ident) => (
+              <DadosDaAmostraBox key={ident.id}>
+                <Separador />
+                <DadosDosResultados>
+                  <label>
+                    <h1>Código:</h1>
+                    <p>{ident.codigo}</p>
+                  </label>
 
-                <label>
-                  <h1>Amostra OnFarm: </h1>
-                  <p>{ident.microorganismo}</p>
-                </label>
+                  <label>
+                    <h1>Amostra OnFarm: </h1>
+                    <p>{ident.microorganismo}</p>
+                  </label>
 
-                <label>
-                  <h1>Produto Comercial:</h1>
-                  <p>{ident.produtocultura}</p>
-                </label>
+                  <label>
+                    <h1>Produto Comercial:</h1>
+                    <p>{ident.produtocultura}</p>
+                  </label>
 
-                <label>
-                  (UFC/ML) Microorganismo
-                  <Select
-                    options={expoenteOptions}
-                    onChange={(selectedOption) =>
-                      handleChange(
-                        selectedOption,
-                        amostra.id,
-                        ident.id,
-                        "ufcmicroorganismo"
-                      )
-                    }
-                    placeholder="Selecione uma opção"
-                  />
-                </label>
+                  <label>
+                    (UFC/ML) Microorganismo
+                    <Select
+                      options={expoenteOptions}
+                      onChange={(selectedOption) =>
+                        handleChange(
+                          selectedOption,
+                          amostra.id,
+                          ident.id,
+                          "ufcmicroorganismo"
+                        )
+                      }
+                      placeholder="Selecione uma opção"
+                    />
+                  </label>
 
-                <label>
-                  (UFC/ML) Coliformes
-                  <Select
-                    options={expoenteOptions}
-                    onChange={(selectedOption) =>
-                      handleChange(
-                        selectedOption,
-                        amostra.id,
-                        ident.id,
-                        "ufccoliformes"
-                      )
-                    }
-                    placeholder="Selecione uma opção"
-                  />
-                </label>
+                  <label>
+                    (UFC/ML) Coliformes
+                    <Select
+                      options={expoenteOptions}
+                      onChange={(selectedOption) =>
+                        handleChange(
+                          selectedOption,
+                          amostra.id,
+                          ident.id,
+                          "ufccoliformes"
+                        )
+                      }
+                      placeholder="Selecione uma opção"
+                    />
+                  </label>
 
-                <label>
-                  (UFC/ML) Bolor/Levedura
-                  <Select
-                    options={expoenteOptions}
-                    onChange={(selectedOption) =>
-                      handleChange(
-                        selectedOption,
-                        amostra.id,
-                        ident.id,
-                        "ufcbolor"
-                      )
-                    }
-                    placeholder="Selecione uma opção"
-                  />
-                </label>
-                <AdminOptions>
+                  <label>
+                    (UFC/ML) Bolor/Levedura
+                    <Select
+                      options={expoenteOptions}
+                      onChange={(selectedOption) =>
+                        handleChange(
+                          selectedOption,
+                          amostra.id,
+                          ident.id,
+                          "ufcbolor"
+                        )
+                      }
+                      placeholder="Selecione uma opção"
+                    />
+                  </label>
                   <AdminOptions>
-                    <Imprimir onClick={() => generatePDF(amostra.id)}>
-                      IMPRIMIR
-                    </Imprimir>
-                    <DeletarAmostra onClick={() => openModal(amostra)}>
-                      Deletar Amostra
-                    </DeletarAmostra>
+                    <AdminOptions>
+                      <Imprimir onClick={() => generatePDF(amostra.id)}>
+                        IMPRIMIR
+                      </Imprimir>
+                      <DeletarAmostra onClick={() => openModal(amostra)}>
+                        Deletar Amostra
+                      </DeletarAmostra>
+                    </AdminOptions>
                   </AdminOptions>
-                </AdminOptions>
-                {showModal && (
-                  <ModalContainer>
-                    <ModalBox>
-                      <h2>Tem certeza que deseja excluir essa amostra?</h2>
-                      <div>
-                        <Button onClick={() => handleDelete(selectedClient.id)}>
-                          Sim
-                        </Button>
-                        <Button onClick={() => closeModal()}>Não</Button>
-                      </div>
-                    </ModalBox>
-                  </ModalContainer>
-                )}
-              </DadosDosResultados>
-            </DadosDaAmostraBox>
-          ))}
-        </TodosOsDadosBox>
-      ))}
+                  {showModal && (
+                    <ModalContainer>
+                      <ModalBox>
+                        <h2>Tem certeza que deseja excluir essa amostra?</h2>
+                        <div>
+                          <Button
+                            onClick={() => handleDelete(selectedClient.id)}
+                          >
+                            Sim
+                          </Button>
+                          <Button onClick={() => closeModal()}>Não</Button>
+                        </div>
+                      </ModalBox>
+                    </ModalContainer>
+                  )}
+                </DadosDosResultados>
+              </DadosDaAmostraBox>
+            ))}
+          </TodosOsDadosBox>
+        ))
+      ) : (
+        <p>Sem amostras correspondentes</p>
+      )}
     </>
   );
 }
@@ -524,4 +569,10 @@ const Button = styled.button`
   &:hover {
     background-color: #003366;
   }
+`;
+
+const Filtro = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 `;
